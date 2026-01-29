@@ -195,7 +195,7 @@ def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
             pass  # Ignore errors in progress callback
     
     base_opts = {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
         'outtmpl': str(output_path),
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -286,7 +286,7 @@ def download_video(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
             pass  # Ignore errors in progress callback
     
     base_opts = {
-        'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+        'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
         'outtmpl': str(output_path),
         'merge_output_format': 'mp4',
         'quiet': False,
