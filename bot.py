@@ -59,24 +59,59 @@ def extract_video_id(url: str) -> Optional[str]:
     return None
 
 
+def get_ydl_opts_base(player_clients: list[str]) -> dict:
+    """Get base yt-dlp options for bypassing bot detection."""
+    return {
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
+        'extractor_args': {
+            'youtube': {
+                'skip': ['hls', 'dash'],
+                'player_client': player_clients
+            }
+        },
+    }
+
+
 def get_video_info(url: str) -> dict:
-    """Get video information without downloading."""
-    ydl_opts = {
+    """Get video information without downloading. Retries with different clients if needed."""
+    base_opts = {
         'quiet': True,
         'no_warnings': True,
         'extract_flat': False,
-        'age_limit': 21,  # Allow 21+ content
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},  # Bypass age restriction
     }
     
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return {
-            'title': info.get('title', 'Unknown'),
-            'duration': info.get('duration', 0),
-            'uploader': info.get('uploader', 'Unknown'),
-            'video_id': info.get('id', ''),
-        }
+    # Try different player clients in order: android_music -> android -> web
+    player_clients_list = [
+        ['android_music', 'android'],
+        ['android'],
+        ['web'],
+    ]
+    
+    last_error = None
+    for player_clients in player_clients_list:
+        try:
+            ydl_opts = {
+                **base_opts,
+                **get_ydl_opts_base(player_clients),
+            }
+            
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                return {
+                    'title': info.get('title', 'Unknown'),
+                    'duration': info.get('duration', 0),
+                    'uploader': info.get('uploader', 'Unknown'),
+                    'video_id': info.get('id', ''),
+                }
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Failed with player_clients {player_clients}: {e}")
+            continue
+    
+    # If all attempts failed, raise the last error
+    raise last_error or Exception("Failed to get video info")
 
 
 def format_size(size_bytes: int) -> str:
@@ -89,7 +124,7 @@ def format_size(size_bytes: int) -> str:
 
 
 def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Path:
-    """Download audio from YouTube video and convert to MP3."""
+    """Download audio from YouTube video and convert to MP3. Retries with different clients if needed."""
     output_path = TEMP_DIR / f"{video_id}.%(ext)s"
     
     def progress_hook(d: dict):
@@ -116,7 +151,7 @@ def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
         except Exception:
             pass  # Ignore errors in progress callback
     
-    ydl_opts = {
+    base_opts = {
         'format': 'bestaudio/best',
         'outtmpl': str(output_path),
         'postprocessors': [{
@@ -126,23 +161,61 @@ def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
         }],
         'quiet': False,
         'progress_hooks': [progress_hook],
-        'age_limit': 21,  # Allow 21+ content
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},  # Bypass age restriction
     }
     
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    # Try different player clients in order: android_music -> android -> web
+    player_clients_list = [
+        ['android_music', 'android'],
+        ['android'],
+        ['web'],
+    ]
     
-    # Find the downloaded file
-    mp3_file = TEMP_DIR / f"{video_id}.mp3"
-    if not mp3_file.exists():
-        raise FileNotFoundError(f"Downloaded file not found: {mp3_file}")
+    last_error = None
+    for player_clients in player_clients_list:
+        try:
+            # Clean up any previous failed downloads
+            for ext in ['mp3', 'm4a', 'webm', 'opus']:
+                temp_file = TEMP_DIR / f"{video_id}.{ext}"
+                if temp_file.exists():
+                    try:
+                        temp_file.unlink()
+                    except Exception:
+                        pass
+            
+            ydl_opts = {
+                **base_opts,
+                **get_ydl_opts_base(player_clients),
+            }
+            
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            
+            # Find the downloaded file
+            mp3_file = TEMP_DIR / f"{video_id}.mp3"
+            if mp3_file.exists():
+                return mp3_file
+            
+            raise FileNotFoundError(f"Downloaded file not found: {mp3_file}")
+            
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Failed to download audio with player_clients {player_clients}: {e}")
+            # Clean up failed download
+            for ext in ['mp3', 'm4a', 'webm', 'opus']:
+                temp_file = TEMP_DIR / f"{video_id}.{ext}"
+                if temp_file.exists():
+                    try:
+                        temp_file.unlink()
+                    except Exception:
+                        pass
+            continue
     
-    return mp3_file
+    # If all attempts failed, raise the last error
+    raise last_error or Exception("Failed to download audio")
 
 
 def download_video(url: str, video_id: str, progress_queue: asyncio.Queue) -> Path:
-    """Download video from YouTube in best quality (max 1080p)."""
+    """Download video from YouTube in best quality (max 1080p). Retries with different clients if needed."""
     output_path = TEMP_DIR / f"{video_id}.%(ext)s"
     
     def progress_hook(d: dict):
@@ -169,32 +242,69 @@ def download_video(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
         except Exception:
             pass  # Ignore errors in progress callback
     
-    # Format selector: best video up to 1080p, best audio, merge them
-    ydl_opts = {
+    base_opts = {
         'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
         'outtmpl': str(output_path),
         'merge_output_format': 'mp4',
         'quiet': False,
         'progress_hooks': [progress_hook],
-        'age_limit': 21,  # Allow 21+ content
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},  # Bypass age restriction
     }
     
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    # Try different player clients in order: android_music -> android -> web
+    player_clients_list = [
+        ['android_music', 'android'],
+        ['android'],
+        ['web'],
+    ]
     
-    # Find the downloaded file (could be .mp4 or other extension)
-    video_file = None
-    for ext in ['mp4', 'webm', 'mkv']:
-        potential_file = TEMP_DIR / f"{video_id}.{ext}"
-        if potential_file.exists():
-            video_file = potential_file
-            break
+    last_error = None
+    for player_clients in player_clients_list:
+        try:
+            # Clean up any previous failed downloads
+            for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                temp_file = TEMP_DIR / f"{video_id}.{ext}"
+                if temp_file.exists():
+                    try:
+                        temp_file.unlink()
+                    except Exception:
+                        pass
+            
+            ydl_opts = {
+                **base_opts,
+                **get_ydl_opts_base(player_clients),
+            }
+            
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            
+            # Find the downloaded file (could be .mp4 or other extension)
+            video_file = None
+            for ext in ['mp4', 'webm', 'mkv']:
+                potential_file = TEMP_DIR / f"{video_id}.{ext}"
+                if potential_file.exists():
+                    video_file = potential_file
+                    break
+            
+            if video_file and video_file.exists():
+                return video_file
+            
+            raise FileNotFoundError(f"Downloaded video file not found for {video_id}")
+            
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Failed to download video with player_clients {player_clients}: {e}")
+            # Clean up failed download
+            for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                temp_file = TEMP_DIR / f"{video_id}.{ext}"
+                if temp_file.exists():
+                    try:
+                        temp_file.unlink()
+                    except Exception:
+                        pass
+            continue
     
-    if not video_file or not video_file.exists():
-        raise FileNotFoundError(f"Downloaded video file not found for {video_id}")
-    
-    return video_file
+    # If all attempts failed, raise the last error
+    raise last_error or Exception("Failed to download video")
 
 
 @dp.message(Command("start"))
