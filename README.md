@@ -102,7 +102,8 @@ Make sure all files are committed and pushed to GitHub/GitLab.
 In Railway dashboard:
 1. Go to your project → Variables
 2. Add `BOT_TOKEN` with your Telegram bot token
-3. Railway will automatically redeploy
+3. (Optional) Add `YOUTUBE_COOKIES` with your YouTube cookies content (see "Using Cookies" section below)
+4. Railway will automatically redeploy
 
 ### 4. Monitor logs
 
@@ -127,7 +128,7 @@ Starting YouTube to MP3 bot...
 
 ## Using Cookies (Optional)
 
-To bypass YouTube bot detection more effectively, you can use cookies from your browser:
+To bypass YouTube bot detection more effectively, you can use cookies from your browser. Cookies can be provided via environment variable (recommended for Railway) or via file (for local development).
 
 ### Export Cookies from Browser
 
@@ -136,16 +137,28 @@ To bypass YouTube bot detection more effectively, you can use cookies from your 
 2. Go to `youtube.com` and log in
 3. Click the extension icon
 4. Select `youtube.com` domain
-5. Click "Export" and save as `cookies.txt` in project root
+5. Click "Export" and copy the cookies content
 
 **Firefox:**
 1. Install extension: [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)
 2. Go to `youtube.com` and log in
 3. Click the extension icon
 4. Select `youtube.com` domain
-5. Click "Export" and save as `cookies.txt` in project root
+5. Click "Export" and copy the cookies content
 
-### Add Cookies to Project
+### For Railway Deployment (Recommended)
+
+1. Export cookies from your browser (see above)
+2. Copy the entire cookies content (all lines from the exported file)
+3. In Railway dashboard → Variables, add new variable:
+   - **Name:** `YOUTUBE_COOKIES`
+   - **Value:** Paste the entire cookies content (all lines)
+4. Save and Railway will automatically redeploy
+5. The bot will use cookies from the environment variable
+
+**Note:** Make sure to paste the complete cookies content including all lines. The format should be Netscape HTTP Cookie File format.
+
+### For Local Development
 
 1. Copy `cookies.txt.example` to `cookies.txt`:
    ```bash
@@ -154,6 +167,13 @@ To bypass YouTube bot detection more effectively, you can use cookies from your 
 2. Export your cookies from browser and paste them into `cookies.txt`
 3. The bot will automatically detect and use cookies if file has content
 4. **Important:** If you add real cookies, uncomment `cookies.txt` in `.gitignore` to prevent committing them!
+
+### Priority
+
+The bot checks for cookies in this order:
+1. `YOUTUBE_COOKIES` environment variable (for Railway/deployment)
+2. `cookies.txt` file (for local development)
+3. No cookies (works but may encounter more bot detection blocks)
 
 ### Without Cookies
 

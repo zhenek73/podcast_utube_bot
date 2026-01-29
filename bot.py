@@ -85,17 +85,30 @@ def get_ydl_opts_base(player_clients: list[str]) -> dict:
         },
     }
     
-    # Add cookies file if it exists
-    cookies_file = Path('/app/cookies.txt')
-    if not cookies_file.exists():
-        # Try local path for development
-        cookies_file = Path('cookies.txt')
-    
-    if cookies_file.exists() and cookies_file.stat().st_size > 0:
-        opts['cookiefile'] = str(cookies_file)
-        logger.info(f"Using cookies file: {cookies_file}")
+    # Check for cookies in environment variable first (for Railway/deployment)
+    cookies_content = os.getenv('YOUTUBE_COOKIES')
+    if cookies_content and cookies_content.strip():
+        # Create temporary cookies file from environment variable
+        temp_cookies_file = TEMP_DIR / 'cookies.txt'
+        try:
+            with open(temp_cookies_file, 'w', encoding='utf-8') as f:
+                f.write(cookies_content)
+            opts['cookiefile'] = str(temp_cookies_file)
+            logger.info(f"Using cookies from YOUTUBE_COOKIES environment variable")
+        except Exception as e:
+            logger.warning(f"Failed to create temporary cookies file: {e}")
     else:
-        logger.debug("No cookies file found, working without cookies")
+        # Fallback to cookies.txt file (for local development)
+        cookies_file = Path('/app/cookies.txt')
+        if not cookies_file.exists():
+            # Try local path for development
+            cookies_file = Path('cookies.txt')
+        
+        if cookies_file.exists() and cookies_file.stat().st_size > 0:
+            opts['cookiefile'] = str(cookies_file)
+            logger.info(f"Using cookies file: {cookies_file}")
+        else:
+            logger.debug("No cookies found (neither YOUTUBE_COOKIES env var nor cookies.txt file), working without cookies")
     
     return opts
 
