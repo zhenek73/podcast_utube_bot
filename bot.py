@@ -40,6 +40,7 @@ MAX_FILE_SIZE_WARNING = 50 * 1024 * 1024  # 50 MB in bytes
 YOUTUBE_PATTERNS = [
     r'(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})',
     r'(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})',
+    r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})',  # YouTube Shorts support
 ]
 
 # Initialize bot and dispatcher
@@ -51,11 +52,22 @@ video_urls: dict[str, str] = {}
 
 
 def extract_video_id(url: str) -> Optional[str]:
-    """Extract YouTube video ID from URL."""
-    for pattern in YOUTUBE_PATTERNS:
+    """Extract YouTube video ID from URL. Supports watch, youtu.be, embed, and shorts formats."""
+    for i, pattern in enumerate(YOUTUBE_PATTERNS):
         match = re.search(pattern, url)
         if match:
-            return match.group(1)
+            video_id = match.group(1)
+            # Log URL type for debugging
+            if i == 0:
+                url_type = 'watch/youtu.be'
+            elif i == 1:
+                url_type = 'embed'
+            elif i == 2:
+                url_type = 'shorts'
+            else:
+                url_type = 'unknown'
+            logger.info(f"Detected YouTube {url_type} URL, video_id: {video_id}")
+            return video_id
     return None
 
 
@@ -317,10 +329,12 @@ async def cmd_start(message: Message):
         "• 🎥 MP4 Video (up to 1080p)\n\n"
         "📋 Supported URL formats:\n"
         "• youtube.com/watch?v=...\n"
-        "• youtu.be/...\n\n"
+        "• youtu.be/...\n"
+        "• youtube.com/shorts/...\n\n"
         "✨ Features:\n"
         "• No length limits\n"
-        "• Supports age-restricted videos"
+        "• Supports age-restricted videos\n"
+        "• Supports YouTube Shorts"
     )
     await message.answer(welcome_text)
 
@@ -337,9 +351,14 @@ async def handle_youtube_link(message: Message):
             "❌ Invalid YouTube URL. Please send a valid YouTube link.\n\n"
             "Examples:\n"
             "• https://www.youtube.com/watch?v=dQw4w9WgXcQ\n"
-            "• https://youtu.be/dQw4w9WgXcQ"
+            "• https://youtu.be/dQw4w9WgXcQ\n"
+            "• https://www.youtube.com/shorts/xqrkk41Ga-w"
         )
         return
+    
+    # Log if it's a Shorts URL
+    if '/shorts/' in url.lower():
+        logger.info(f"Processing YouTube Shorts URL: {url}, video_id: {video_id}")
     
     # Send initial status
     status_message = await message.answer("🔍 Checking video...")
