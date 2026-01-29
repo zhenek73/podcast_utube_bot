@@ -139,6 +139,8 @@ def get_video_info(url: str) -> dict:
                 **base_opts,
                 **get_ydl_opts_base(player_clients),
             }
+            # Remove format for info extraction - not needed and causes errors
+            ydl_opts.pop('format', None)
             
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
