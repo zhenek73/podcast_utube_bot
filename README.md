@@ -123,12 +123,48 @@ Starting YouTube to MP3 bot...
 - `https://www.youtube.com/watch?v=VIDEO_ID`
 - `https://youtu.be/VIDEO_ID`
 - `https://www.youtube.com/embed/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+
+## Using Cookies (Optional)
+
+To bypass YouTube bot detection more effectively, you can use cookies from your browser:
+
+### Export Cookies from Browser
+
+**Chrome/Edge:**
+1. Install extension: [Get cookies.txt LOCALLY](https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc)
+2. Go to `youtube.com` and log in
+3. Click the extension icon
+4. Select `youtube.com` domain
+5. Click "Export" and save as `cookies.txt` in project root
+
+**Firefox:**
+1. Install extension: [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)
+2. Go to `youtube.com` and log in
+3. Click the extension icon
+4. Select `youtube.com` domain
+5. Click "Export" and save as `cookies.txt` in project root
+
+### Add Cookies to Project
+
+1. Copy `cookies.txt.example` to `cookies.txt`:
+   ```bash
+   cp cookies.txt.example cookies.txt
+   ```
+2. Export your cookies from browser and paste them into `cookies.txt`
+3. The bot will automatically detect and use cookies if file has content
+4. **Important:** If you add real cookies, uncomment `cookies.txt` in `.gitignore` to prevent committing them!
+
+### Without Cookies
+
+The bot works without cookies, but may encounter more YouTube bot detection blocks. Cookies help bypass these restrictions.
 
 ## Limitations
 
-- Maximum video duration: 10 minutes
+- No length limits (videos of any duration)
 - Audio quality: 128 kbps MP3
-- Some videos may be unavailable (private, age-restricted, region-locked)
+- Video quality: up to 1080p MP4
+- Some videos may be unavailable (private, region-locked)
 
 ## Project Structure
 
@@ -138,6 +174,8 @@ podcast_utube_bot/
 ├── requirements.txt    # Python dependencies
 ├── Dockerfile          # Docker configuration for Railway
 ├── .env.example        # Environment variables template
+├── cookies.txt         # YouTube cookies (template in repo, add real cookies locally)
+├── cookies.txt.example # Cookies file template
 ├── .gitignore          # Git ignore rules
 └── README.md           # This file
 ```

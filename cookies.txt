@@ -1,0 +1,17 @@
+# YouTube Cookies File
+# 
+# This file is used to bypass YouTube bot detection.
+# If this file is empty (only comments), the bot will work without cookies.
+#
+# To add your cookies:
+# 1. Install browser extension: "Get cookies.txt LOCALLY" (Chrome/Edge) or "cookies.txt" (Firefox)
+# 2. Go to youtube.com and log in
+# 3. Export cookies for youtube.com domain
+# 4. Replace the content of this file with your exported cookies
+#
+# Format: Netscape HTTP Cookie File
+# Example:
+# .youtube.com	TRUE	/	FALSE	1735689600	VISITOR_INFO1_LIVE	abc123def456
+# .youtube.com	TRUE	/	FALSE	1735689600	YSC	xyz789
+#
+# IMPORTANT: If you add real cookies, keep this file private!

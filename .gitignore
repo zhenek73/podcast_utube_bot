@@ -51,3 +51,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Cookies file (contains sensitive authentication data)
+# Note: cookies.txt template is committed, but if you add real cookies, 
+# uncomment the line below to prevent committing them:
+# cookies.txt

@@ -73,7 +73,7 @@ def extract_video_id(url: str) -> Optional[str]:
 
 def get_ydl_opts_base(player_clients: list[str]) -> dict:
     """Get base yt-dlp options for bypassing bot detection."""
-    return {
+    opts = {
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
@@ -84,6 +84,20 @@ def get_ydl_opts_base(player_clients: list[str]) -> dict:
             }
         },
     }
+    
+    # Add cookies file if it exists
+    cookies_file = Path('/app/cookies.txt')
+    if not cookies_file.exists():
+        # Try local path for development
+        cookies_file = Path('cookies.txt')
+    
+    if cookies_file.exists() and cookies_file.stat().st_size > 0:
+        opts['cookiefile'] = str(cookies_file)
+        logger.info(f"Using cookies file: {cookies_file}")
+    else:
+        logger.debug("No cookies file found, working without cookies")
+    
+    return opts
 
 
 def get_video_info(url: str) -> dict:
