@@ -4,6 +4,7 @@ Uses aiogram 3.x, yt-dlp, and ffmpeg for processing.
 """
 
 import asyncio
+import base64
 import logging
 import os
 import re
@@ -85,16 +86,32 @@ def get_ydl_opts_base(player_clients: list[str]) -> dict:
         },
     }
     
-    # Check for cookies in environment variable first (for Railway/deployment)
-    cookies_content = os.getenv('YOUTUBE_COOKIES')
-    if cookies_content and cookies_content.strip():
-        # Create temporary cookies file from environment variable
-        temp_cookies_file = TEMP_DIR / 'cookies.txt'
+    # Check for cookies in environment variables (for Railway/deployment)
+    # Priority: YOUTUBE_COOKIES_BASE64 > YOUTUBE_COOKIES > cookies.txt file
+    temp_cookies_file = TEMP_DIR / 'cookies.txt'
+    cookies_content = None
+    
+    # Try base64 encoded cookies first (recommended for Railway)
+    cookies_base64 = os.getenv('YOUTUBE_COOKIES_BASE64')
+    if cookies_base64 and cookies_base64.strip():
+        try:
+            cookies_content = base64.b64decode(cookies_base64).decode('utf-8')
+            logger.info("Using cookies from YOUTUBE_COOKIES_BASE64 environment variable")
+        except Exception as e:
+            logger.warning(f"Failed to decode YOUTUBE_COOKIES_BASE64: {e}")
+    
+    # Fallback to plain text cookies (for backward compatibility)
+    if not cookies_content:
+        cookies_content = os.getenv('YOUTUBE_COOKIES')
+        if cookies_content and cookies_content.strip():
+            logger.info("Using cookies from YOUTUBE_COOKIES environment variable")
+    
+    # Create temporary cookies file if we have content from environment variable
+    if cookies_content:
         try:
             with open(temp_cookies_file, 'w', encoding='utf-8') as f:
                 f.write(cookies_content)
             opts['cookiefile'] = str(temp_cookies_file)
-            logger.info(f"Using cookies from YOUTUBE_COOKIES environment variable")
         except Exception as e:
             logger.warning(f"Failed to create temporary cookies file: {e}")
     else:
@@ -108,7 +125,7 @@ def get_ydl_opts_base(player_clients: list[str]) -> dict:
             opts['cookiefile'] = str(cookies_file)
             logger.info(f"Using cookies file: {cookies_file}")
         else:
-            logger.debug("No cookies found (neither YOUTUBE_COOKIES env var nor cookies.txt file), working without cookies")
+            logger.debug("No cookies found (neither env vars nor cookies.txt file), working without cookies")
     
     return opts
 

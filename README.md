@@ -148,15 +148,40 @@ To bypass YouTube bot detection more effectively, you can use cookies from your 
 
 ### For Railway Deployment (Recommended)
 
+**Method 1: Base64 Encoded (Recommended)**
+
+This method preserves line breaks and is more reliable when copying to Railway Variables:
+
+1. Export cookies from your browser (see above)
+2. Save the cookies to a file (e.g., `cookies.txt`)
+3. Encode the file to base64:
+
+   **Windows PowerShell:**
+   ```powershell
+   [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content cookies.txt -Raw)))
+   ```
+
+   **Linux/Mac:**
+   ```bash
+   base64 -w 0 cookies.txt
+   ```
+
+4. Copy the base64 output
+5. In Railway dashboard → Variables, add new variable:
+   - **Name:** `YOUTUBE_COOKIES_BASE64`
+   - **Value:** Paste the base64 encoded string
+6. Save and Railway will automatically redeploy
+
+**Method 2: Plain Text (Backward Compatible)**
+
 1. Export cookies from your browser (see above)
 2. Copy the entire cookies content (all lines from the exported file)
 3. In Railway dashboard → Variables, add new variable:
    - **Name:** `YOUTUBE_COOKIES`
    - **Value:** Paste the entire cookies content (all lines)
 4. Save and Railway will automatically redeploy
-5. The bot will use cookies from the environment variable
 
-**Note:** Make sure to paste the complete cookies content including all lines. The format should be Netscape HTTP Cookie File format.
+**Note:** Base64 encoding (Method 1) is recommended as it preserves line breaks better when copying to Railway Variables. Plain text (Method 2) may have issues with line breaks.
 
 ### For Local Development
 
@@ -171,9 +196,10 @@ To bypass YouTube bot detection more effectively, you can use cookies from your 
 ### Priority
 
 The bot checks for cookies in this order:
-1. `YOUTUBE_COOKIES` environment variable (for Railway/deployment)
-2. `cookies.txt` file (for local development)
-3. No cookies (works but may encounter more bot detection blocks)
+1. `YOUTUBE_COOKIES_BASE64` environment variable (base64 encoded, recommended for Railway)
+2. `YOUTUBE_COOKIES` environment variable (plain text, backward compatible)
+3. `cookies.txt` file (for local development)
+4. No cookies (works but may encounter more bot detection blocks)
 
 ### Without Cookies
 
