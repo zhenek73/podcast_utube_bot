@@ -1,17 +1,27 @@
-# YouTube Cookies File
-# 
-# This file is used to bypass YouTube bot detection.
-# If this file is empty (only comments), the bot will work without cookies.
-#
-# To add your cookies:
-# 1. Install browser extension: "Get cookies.txt LOCALLY" (Chrome/Edge) or "cookies.txt" (Firefox)
-# 2. Go to youtube.com and log in
-# 3. Export cookies for youtube.com domain
-# 4. Replace the content of this file with your exported cookies
-#
-# Format: Netscape HTTP Cookie File
-# Example:
-# .youtube.com	TRUE	/	FALSE	1735689600	VISITOR_INFO1_LIVE	abc123def456
-# .youtube.com	TRUE	/	FALSE	1735689600	YSC	xyz789
-#
-# IMPORTANT: If you add real cookies, keep this file private!
+# Netscape HTTP Cookie File
+# https://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file! Do not edit.
+
+.youtube.com	TRUE	/	TRUE	1804279575	PREF	f4=4000000&f6=40000000&tz=Europe.Astrakhan&f7=100
+.youtube.com	TRUE	/	FALSE	1802936664	HSID	AnZ9IxfquVx0WA4YR
+.youtube.com	TRUE	/	TRUE	1802936664	SSID	Aylxhe4PpzuN-pO7O
+.youtube.com	TRUE	/	FALSE	1802936664	APISID	YvsispvvSYQoleod/AszMk9gcM-hl7RI90
+.youtube.com	TRUE	/	TRUE	1802936664	SAPISID	b9PxZHQ17WI3jnxJ/AO6cmPFDW4YvCAPS3
+.youtube.com	TRUE	/	TRUE	1802936664	__Secure-1PAPISID	b9PxZHQ17WI3jnxJ/AO6cmPFDW4YvCAPS3
+.youtube.com	TRUE	/	TRUE	1802936664	__Secure-3PAPISID	b9PxZHQ17WI3jnxJ/AO6cmPFDW4YvCAPS3
+.youtube.com	TRUE	/	TRUE	1800282553	LOGIN_INFO	AFmmF2swRAIgTGGm1HiSvsQAw-ZegkQhZIkmj8X45Jko36LesLDSBnACICKqgq0XfeFoeGo3vJa1kpt5c4M-uTp3VRP0DoAjsEVD:QUQ3MjNmeUN1UXBEWXZwX2U0OU1QWDc1YUxoOHdVRW0xMkl5YzVUUU9Rai1DTDc0SlBCS3g1cW4yZjI5UTd1QlJSZUVMdy1HVzktV2Zrd0tJRzlNcWdJRmQtdzJZdHNXazY2Q2Y4bFVmVVFOSE5rZkVJUkY2bFlwdDRIOTY5VGJQM3BVTlhtdkxZY1dfSTlTblJVTFVURmdxODBTVFVlcDd3eXNQaU5XcnhNcjllY0lma0tqX2JPelU1Nm52OS05UUw5bFRLb0hFNHI2M1E4QUJ2alNjRTQyMTJ4MFhINEFtUQ==
+.youtube.com	TRUE	/	FALSE	1802936664	SID	g.a0005gh9wWSA57aMTsZ0KPGMaBbWepLvw6lnIBYl4Ut9Hox23e-KpJ-MZhPtmRt6SK5q5sDi6wACgYKAcsSARMSFQHGX2MiXXa3ngCXkd60AtFClp-8oBoVAUF8yKpcQKUMe0m56-WKFh2L7ikJ0076
+.youtube.com	TRUE	/	TRUE	1802936664	__Secure-1PSID	g.a0005gh9wWSA57aMTsZ0KPGMaBbWepLvw6lnIBYl4Ut9Hox23e-KidYh1wP8wOcgDFKghTdDMQACgYKAV8SARMSFQHGX2MiV74UEGGaCsLQokHIUAvQlBoVAUF8yKpoaLEB0UKZ64LCWEL5Smee0076
+.youtube.com	TRUE	/	TRUE	1802936664	__Secure-3PSID	g.a0005gh9wWSA57aMTsZ0KPGMaBbWepLvw6lnIBYl4Ut9Hox23e-Kli83C1qvuedLkJ4TVcGYmQACgYKATUSARMSFQHGX2MioaSwaVv8Jl4iDwiwGmPkcRoVAUF8yKptTZh6BrkIvfWnJoUWj2e10076
+.youtube.com	TRUE	/	FALSE	0	wide	1
+.youtube.com	TRUE	/	TRUE	1769720050	CONSISTENCY	AAsGu9nk-P0Uu6whsTXOi9Qsxa2bjJaOM1QhXDwpzoreZPIHHwey9YPItBb9i63IoBzQcDllMbYnvatEeHDuEkkUECjpbhIA1N4l9mx8H6OLmg275mgH3moauSk
+.youtube.com	TRUE	/	TRUE	1801255813	__Secure-1PSIDTS	sidts-CjQB7I_69Js03T2mwi44sOelJm_CO5OIy6NMXlGXByoEl3Q0MPiQlZcHU9ZJN9fS0QLiy8yQEAA
+.youtube.com	TRUE	/	TRUE	1801255813	__Secure-3PSIDTS	sidts-CjQB7I_69Js03T2mwi44sOelJm_CO5OIy6NMXlGXByoEl3Q0MPiQlZcHU9ZJN9fS0QLiy8yQEAA
+.youtube.com	TRUE	/	FALSE	1801255813	SIDCC	AKEyXzUxIZ-SuA5nUdpXPC1qhf60f3gUvKJVfOkYD8_jPomaL3Wui7lqMR7rd-7zq034XlycA9I
+.youtube.com	TRUE	/	TRUE	1801255813	__Secure-1PSIDCC	AKEyXzVbCjKwTGBcsOznl5MwHMdjvJlUsvy4qyLt2QAcpjJpVoH0nrU_t4tMs5otOMerfAg26A
+.youtube.com	TRUE	/	TRUE	1801255813	__Secure-3PSIDCC	AKEyXzXy6477QZVNCdu9jIvA660GnZ0WPwR3JFAqC24fE0p7aXK3GvS2Vux0fXfqhKcFaO8QohU
+.youtube.com	TRUE	/	TRUE	1785271573	VISITOR_INFO1_LIVE	FmBUPHVFmOI
+.youtube.com	TRUE	/	TRUE	1785271573	VISITOR_PRIVACY_METADATA	CgJSVRIEGgAgag%3D%3D
+.youtube.com	TRUE	/	TRUE	0	YSC	1Yt_HpJeYWM
+.youtube.com	TRUE	/	TRUE	1785239207	__Secure-YNID	15.YT=X2rijQ0Q7nzEWI_1I29JJfrgjvxzbclTFCuzET9gRoCUKrFi3UTHDe4DbAqqX_OrTyRL6BSoyYvxXtYA1IBTunxdY1rTPhkKeWMS6GZIb2LxtsN2Rz4HlJCdhYwJqp_ZbG31RK35BzcmCLo7sZ0IeEAzSXtgQOf1K2YUXnyUB_lSWB4sD_hi-0dTtIQEIExxvyluIG1sFpC_VUFb4HrHIjuGtr0wshw2t61N3CjCxnIGCMTIF7kfTd9MMKcmvCRyVpz1bpp2DzrN-ZIloWnaKAiFVnWDprnCY7YOHiTTHqnQfpz1TGLtej0A6o3FH39gmF0s8G4EkIRtduyl9hzmDA
+.youtube.com	TRUE	/	TRUE	1785239207	__Secure-ROLLOUT_TOKEN	CMzyzuSntaCMjAEQzJHO2ZyzkQMYk7jbytawkgM%3D
