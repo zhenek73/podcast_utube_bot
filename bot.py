@@ -1,5 +1,5 @@
 """
-Telegram bot for converting YouTube videos to MP3 format.
+Telegram bot for converting YouTube videos to MP3/MP4 format.
 Uses aiogram 3.x, yt-dlp, and ffmpeg for processing.
 """
 
@@ -12,7 +12,7 @@ from typing import Optional
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, FSInputFile
+from aiogram.types import Message, FSInputFile, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
 from yt_dlp import YoutubeDL
 
@@ -32,9 +32,9 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable is not set")
 
 # Constants
-MAX_VIDEO_DURATION = 600  # 10 minutes in seconds
 TEMP_DIR = Path('/tmp/yt_mp3_bot')
 TEMP_DIR.mkdir(exist_ok=True, parents=True)
+MAX_FILE_SIZE_WARNING = 50 * 1024 * 1024  # 50 MB in bytes
 
 # YouTube URL patterns
 YOUTUBE_PATTERNS = [
@@ -45,6 +45,9 @@ YOUTUBE_PATTERNS = [
 # Initialize bot and dispatcher
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+
+# Temporary storage for video URLs (video_id -> url)
+video_urls: dict[str, str] = {}
 
 
 def extract_video_id(url: str) -> Optional[str]:
@@ -62,6 +65,8 @@ def get_video_info(url: str) -> dict:
         'quiet': True,
         'no_warnings': True,
         'extract_flat': False,
+        'age_limit': 21,  # Allow 21+ content
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},  # Bypass age restriction
     }
     
     with YoutubeDL(ydl_opts) as ydl:
@@ -74,8 +79,17 @@ def get_video_info(url: str) -> dict:
         }
 
 
+def format_size(size_bytes: int) -> str:
+    """Format file size in human-readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.2f} TB"
+
+
 def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Path:
-    """Download audio from YouTube video."""
+    """Download audio from YouTube video and convert to MP3."""
     output_path = TEMP_DIR / f"{video_id}.%(ext)s"
     
     def progress_hook(d: dict):
@@ -84,11 +98,11 @@ def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
             if d['status'] == 'downloading':
                 if 'total_bytes' in d:
                     percent = (d['downloaded_bytes'] / d['total_bytes']) * 100
-                    text = f"📥 Downloading... {percent:.1f}%"
+                    text = f"📥 Downloading audio... {percent:.1f}%"
                 elif 'downloaded_bytes' in d:
-                    text = f"📥 Downloading... {d['downloaded_bytes']} bytes"
+                    text = f"📥 Downloading audio... {d['downloaded_bytes']} bytes"
                 else:
-                    text = "📥 Downloading..."
+                    text = "📥 Downloading audio..."
             elif d['status'] == 'finished':
                 text = "🔄 Converting to MP3..."
             else:
@@ -112,6 +126,8 @@ def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
         }],
         'quiet': False,
         'progress_hooks': [progress_hook],
+        'age_limit': 21,  # Allow 21+ content
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},  # Bypass age restriction
     }
     
     with YoutubeDL(ydl_opts) as ydl:
@@ -125,25 +141,83 @@ def download_audio(url: str, video_id: str, progress_queue: asyncio.Queue) -> Pa
     return mp3_file
 
 
+def download_video(url: str, video_id: str, progress_queue: asyncio.Queue) -> Path:
+    """Download video from YouTube in best quality (max 1080p)."""
+    output_path = TEMP_DIR / f"{video_id}.%(ext)s"
+    
+    def progress_hook(d: dict):
+        """Callback for download progress - puts updates in queue."""
+        try:
+            if d['status'] == 'downloading':
+                if 'total_bytes' in d:
+                    percent = (d['downloaded_bytes'] / d['total_bytes']) * 100
+                    text = f"📥 Downloading video... {percent:.1f}%"
+                elif 'downloaded_bytes' in d:
+                    text = f"📥 Downloading video... {d['downloaded_bytes']} bytes"
+                else:
+                    text = "📥 Downloading video..."
+            elif d['status'] == 'finished':
+                text = "✅ Video ready!"
+            else:
+                return
+            
+            # Put update in queue (non-blocking)
+            try:
+                progress_queue.put_nowait(text)
+            except asyncio.QueueFull:
+                pass  # Skip if queue is full
+        except Exception:
+            pass  # Ignore errors in progress callback
+    
+    # Format selector: best video up to 1080p, best audio, merge them
+    ydl_opts = {
+        'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+        'outtmpl': str(output_path),
+        'merge_output_format': 'mp4',
+        'quiet': False,
+        'progress_hooks': [progress_hook],
+        'age_limit': 21,  # Allow 21+ content
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},  # Bypass age restriction
+    }
+    
+    with YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+    
+    # Find the downloaded file (could be .mp4 or other extension)
+    video_file = None
+    for ext in ['mp4', 'webm', 'mkv']:
+        potential_file = TEMP_DIR / f"{video_id}.{ext}"
+        if potential_file.exists():
+            video_file = potential_file
+            break
+    
+    if not video_file or not video_file.exists():
+        raise FileNotFoundError(f"Downloaded video file not found for {video_id}")
+    
+    return video_file
+
+
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     """Handle /start command."""
     welcome_text = (
-        "🎵 Welcome to YouTube to MP3 Converter Bot!\n\n"
-        "Send me a YouTube video link and I'll convert it to MP3 format.\n\n"
-        "📋 Supported formats:\n"
+        "🎵 Welcome to YouTube Converter Bot!\n\n"
+        "Send me a YouTube video link and choose format:\n"
+        "• 🎵 MP3 Audio (128 kbps)\n"
+        "• 🎥 MP4 Video (up to 1080p)\n\n"
+        "📋 Supported URL formats:\n"
         "• youtube.com/watch?v=...\n"
         "• youtu.be/...\n\n"
-        "⚠️ Limitations:\n"
-        "• Maximum video length: 10 minutes\n"
-        "• Audio quality: 128 kbps MP3"
+        "✨ Features:\n"
+        "• No length limits\n"
+        "• Supports age-restricted videos"
     )
     await message.answer(welcome_text)
 
 
 @dp.message(F.text)
 async def handle_youtube_link(message: Message):
-    """Handle YouTube URL messages."""
+    """Handle YouTube URL messages - show format selection buttons."""
     url = message.text.strip()
     
     # Extract video ID
@@ -165,21 +239,65 @@ async def handle_youtube_link(message: Message):
         video_info = get_video_info(url)
         duration = video_info.get('duration', 0)
         
-        # Check duration limit
-        if duration > MAX_VIDEO_DURATION:
-            await status_message.edit_text(
-                f"❌ Video is too long ({duration // 60} minutes).\n"
-                f"Maximum allowed duration is {MAX_VIDEO_DURATION // 60} minutes."
-            )
-            return
+        # Store URL for later use in callback
+        video_urls[video_id] = url
         
-        # Update status
+        # Create inline keyboard with format selection
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🎵 MP3 Audio", callback_data=f"format:mp3:{video_id}"),
+                InlineKeyboardButton(text="🎥 MP4 Video", callback_data=f"format:mp4:{video_id}"),
+            ]
+        ])
+        
+        # Show video info with format selection buttons
+        duration_text = f"{duration // 60}:{duration % 60:02d}" if duration > 0 else "Unknown"
         await status_message.edit_text(
             f"📹 Found: {video_info['title']}\n"
             f"👤 Author: {video_info['uploader']}\n"
-            f"⏱ Duration: {duration // 60}:{duration % 60:02d}\n\n"
-            f"📥 Starting download..."
+            f"⏱ Duration: {duration_text}\n\n"
+            f"Choose format:",
+            reply_markup=keyboard
         )
+        
+    except Exception as e:
+        logger.error(f"Error getting video info: {e}", exc_info=True)
+        error_msg = "❌ An error occurred while checking the video."
+        
+        if "Private video" in str(e) or "unavailable" in str(e).lower():
+            error_msg = "❌ This video is unavailable or private."
+        elif "Sign in" in str(e) or "age-restricted" in str(e).lower():
+            error_msg = "❌ This video is age-restricted or requires sign-in."
+        
+        await status_message.edit_text(error_msg)
+
+
+@dp.callback_query(F.data.startswith("format:"))
+async def handle_format_selection(callback: CallbackQuery):
+    """Handle format selection callback."""
+    await callback.answer()
+    
+    # Parse callback data: format:mp3:video_id
+    parts = callback.data.split(":", 2)
+    if len(parts) != 3:
+        await callback.message.answer("❌ Invalid format selection.")
+        return
+    
+    format_type = parts[1]  # mp3 or mp4
+    video_id = parts[2]
+    
+    # Get URL from storage
+    url = video_urls.get(video_id)
+    if not url:
+        await callback.message.answer("❌ Video URL not found. Please send the link again.")
+        return
+    
+    status_message = await callback.message.answer("🔍 Processing...")
+    
+    try:
+        # Get video info again
+        video_info = get_video_info(url)
+        duration = video_info.get('duration', 0)
         
         # Create progress queue for status updates
         progress_queue = asyncio.Queue(maxsize=10)
@@ -207,8 +325,80 @@ async def handle_youtube_link(message: Message):
         monitor_task = asyncio.create_task(monitor_progress())
         
         try:
-            # Download and convert (runs in thread pool)
-            mp3_file = await asyncio.to_thread(download_audio, url, video_id, progress_queue)
+            if format_type == "mp3":
+                # Download audio
+                await status_message.edit_text(
+                    f"📹 {video_info['title']}\n"
+                    f"👤 {video_info['uploader']}\n"
+                    f"⏱ {duration // 60}:{duration % 60:02d}\n\n"
+                    f"📥 Starting download..."
+                )
+                
+                file_path = await asyncio.to_thread(download_audio, url, video_id, progress_queue)
+                
+                # Get file size
+                file_size = file_path.stat().st_size
+                size_text = format_size(file_size)
+                
+                # Update status
+                await status_message.edit_text(f"📤 Uploading MP3 file ({size_text})...")
+                
+                # Send MP3 file
+                audio_file = FSInputFile(
+                    file_path,
+                    filename=f"{video_info['title'][:50]}.mp3"
+                )
+                
+                await callback.message.answer_audio(
+                    audio_file,
+                    title=video_info['title'],
+                    performer=video_info['uploader'],
+                    duration=duration
+                )
+                
+                await status_message.edit_text("✅ Done! MP3 file sent.")
+                
+            elif format_type == "mp4":
+                # Download video
+                await status_message.edit_text(
+                    f"📹 {video_info['title']}\n"
+                    f"👤 {video_info['uploader']}\n"
+                    f"⏱ {duration // 60}:{duration % 60:02d}\n\n"
+                    f"📥 Starting download..."
+                )
+                
+                file_path = await asyncio.to_thread(download_video, url, video_id, progress_queue)
+                
+                # Get file size
+                file_size = file_path.stat().st_size
+                size_text = format_size(file_size)
+                
+                # Check file size and warn if > 50MB
+                warning_text = ""
+                if file_size > MAX_FILE_SIZE_WARNING:
+                    warning_text = f"\n⚠️ File is large ({size_text}), upload may take time..."
+                
+                # Update status
+                await status_message.edit_text(f"📤 Uploading MP4 file ({size_text})...{warning_text}")
+                
+                # Send MP4 file as video
+                video_file = FSInputFile(
+                    file_path,
+                    filename=f"{video_info['title'][:50]}.mp4"
+                )
+                
+                await callback.message.answer_video(
+                    video_file,
+                    caption=f"{video_info['title']}\n👤 {video_info['uploader']}",
+                    duration=duration,
+                    supports_streaming=True
+                )
+                
+                await status_message.edit_text("✅ Done! MP4 file sent.")
+            else:
+                await status_message.edit_text("❌ Unknown format selected.")
+                return
+                
         finally:
             # Cancel monitor task
             monitor_task.cancel()
@@ -216,24 +406,20 @@ async def handle_youtube_link(message: Message):
                 await monitor_task
             except asyncio.CancelledError:
                 pass
-        
-        # Update status
-        await status_message.edit_text("📤 Uploading MP3 file...")
-        
-        # Send MP3 file
-        audio_file = FSInputFile(
-            mp3_file,
-            filename=f"{video_info['title'][:50]}.mp3"
-        )
-        
-        await message.answer_audio(
-            audio_file,
-            title=video_info['title'],
-            performer=video_info['uploader'],
-            duration=duration
-        )
-        
-        await status_message.edit_text("✅ Done! MP3 file sent.")
+            
+            # Clean up temporary files
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    logger.info(f"Cleaned up temporary file: {file_path}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temporary file: {e}")
+            
+            # Clean up URL from storage
+            try:
+                video_urls.pop(video_id, None)
+            except Exception:
+                pass
         
     except Exception as e:
         logger.error(f"Error processing video: {e}", exc_info=True)
@@ -243,21 +429,10 @@ async def handle_youtube_link(message: Message):
             error_msg = "❌ This video is unavailable or private."
         elif "Sign in" in str(e) or "age-restricted" in str(e).lower():
             error_msg = "❌ This video is age-restricted or requires sign-in."
-        elif "too long" in str(e).lower():
-            error_msg = f"❌ Video exceeds maximum duration of {MAX_VIDEO_DURATION // 60} minutes."
+        elif "File too large" in str(e) or "too large" in str(e).lower():
+            error_msg = "❌ File is too large to upload to Telegram."
         
         await status_message.edit_text(error_msg)
-    
-    finally:
-        # Clean up temporary files
-        try:
-            if 'video_id' in locals():
-                mp3_file_path = TEMP_DIR / f"{video_id}.mp3"
-                if mp3_file_path.exists():
-                    mp3_file_path.unlink()
-                    logger.info(f"Cleaned up temporary file: {mp3_file_path}")
-        except Exception as e:
-            logger.warning(f"Failed to clean up temporary file: {e}")
 
 
 async def main():
